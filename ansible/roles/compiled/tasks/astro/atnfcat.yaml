@@ -1,0 +1,57 @@
+---
+- name: Install atnfcat {{ item.version_number }}
+  vars:
+    atnfcat_dir: "{{ astro_dir }}/atnfcat"
+    atnfcat_module_dir: "{{ astro_modules }}/atnfcat"
+    url: "{{ item.url }}"
+    version_number: "{{ item.version_number }}"
+    checksum: "{{ item.checksum }}"
+    install_dir: "{{ atnfcat_dir }}/{{ version_number }}"
+    unzip_dir: "/dev/shm/atnfcat"
+    build_dir: "{{unzip_dir}}/psrcat_tar"
+  tags:
+    - never
+    - atnfcat{{ item.version_number }}
+
+  block:
+    - name: "Download and install atnfcat {{ version_number }}"
+      block:
+        - name: "Download atnfcat {{ version_number }} from {{ url }}"
+          get_url:
+            url: "{{ url }}"
+            dest: "{{ astro_dir }}/src/atnfcat-{{ version_number }}.tar.gz"
+            checksum: "{{ checksum }}"
+        - name: Ensure unzip dir exists
+          file:
+            path: "{{ unzip_dir }}"
+            state: directory
+        - name: Ensure atnfcat dir exists
+          file:
+            path: "{{ atnfcat_dir }}"
+            state: directory
+        - name: Uncompress atnfcat to {{ unzip_dir }}
+          unarchive:
+            src: "{{ astro_dir }}/src/atnfcat-{{ version_number }}.tar.gz"
+            dest: "{{ unzip_dir }}"
+            creates: "{{ build_dir }}"
+        # - name: Compile atnfcat TODO
+        #   command: "source makeit"
+        #   become: no
+        #   args:
+        #     chdir: {{ build_dir }}
+         - name: Move atnfcat to final location
+          command: "mv {{ build_dir }} {{ install_dir }}"
+          args:
+            creates: "{{ install_dir }}"
+
+    - name: "Install atnfcat {{ version_number }} module"
+      block:
+        - name: Check module dir
+          file:
+            path: "{{ atnfcat_module_dir }}"
+            state: directory
+            mode: u=rwx,g=rwx,o=rx
+        - name: Install atnfcat module file
+          template:
+            src: atnfcat.lua
+            dest: "{{ atnfcat_module_dir }}/{{ version_number }}.lua"
